@@ -6,6 +6,7 @@
     </head>
     <body>
         <?php
+        echo "test";
         // put your code here
         ?>
     </body>
