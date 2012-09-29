@@ -210,8 +210,8 @@
       }
       $query = substr($query, 0, -2) . ' where ' . $parameters;
     }
-
-    return db_query($query, $link);
+    
+    return $query;
   }
 
   function db_fetch_array($db_query) {
