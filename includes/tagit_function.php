@@ -622,7 +622,7 @@ function login($email, $password){
     $query = db_query($dbquery, $link);
     
     if(db_num_rows($query)>0){
-        return true;
+        return "200";
     }
     else{
         return "Failed to login. Invalid email/password";
