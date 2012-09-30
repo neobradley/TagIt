@@ -32,7 +32,8 @@ if(isset($request) && !empty($request)){
         echo "Request error.";
     }
     else{
-        echo $result;
+        $arr = array("result"=>$result);
+        echo json_encode($arr);
     }
     
 /*
