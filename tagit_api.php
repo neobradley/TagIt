@@ -16,15 +16,56 @@ if(isset($request) && !empty($request)){
     
     switch($parameters['action']){
 
-        case "signup":
+        case "addUser":
             $result = addUser($parameters['email'], $parameters['name'], $parameters['password'], $parameters['mobile_number']);
             break;
-        case "login":
+			
+        case "getUser":
             $result = login($parameters['email'], $parameters['password']);
             break;
-        case "sync":
-            $result = getUser($ids, $columns);
+			
+        case "syncUser":
+		
+			//data pulled for user profile
+            $result['user_profile'] = getUser($parameters['id'], array("id", "email", "name", "password", "mobile_number", "current_rank", "current_achievements"));
+			
+			//data pulled for profiles of user's friends
+			$result['friends_profile'] = getUser(getUserFriendIds($parameters['id'], 4), array("id", "email", "name", "password", "mobile_number", "current_rank", "current_achievements"));
+			
+			//data pulled for user's friends and requests
+			$result['friends_current'] = getFriend($parameters['id'], 4);
+			$result['friends_pending'] = getFriend($parameters['id'], 3);
+			$result['friends_ignored'] = getFriend($parameters['id'], 5);
+			$result['friends_cencelled'] = getFriend($parameters['id'], 6);
+			
+			//data pulled for user's achievements achieved and not yet achieved
+			$result['achievement_userachieved'] = getUserAchievements($parameters['id']);
+			$result['achievement_usernotachieved'] = getUserNotAchievements($parameters['id']);
             break;
+			
+		case "addFriend":
+			$result = updateFriend($parameters['id'], $parameters['id2'], "add");
+			break;
+			
+		case "cancelFriend":
+			$result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+			break;
+			
+		case "acceptFriend":
+			$result = updateFriend($parameters['id'], $parameters['id2'], "accept");
+			break;	
+			
+		case "ignoreFriend":
+			$result = updateFriend($parameters['id'], $parameters['id2'], "ignore");
+			break;	
+			
+		case "removeFriend":
+			$result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+			break;
+		
+		case "transferPoint":
+			$result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point']);
+			break;
     }
 }
 
@@ -35,6 +76,12 @@ if(isset($request) && !empty($request)){
         $arr = array("result"=>$result);
         echo json_encode($arr);
     }
+	
+	$query =  mysql_query("SELECT email FROM users WHERE id !=1");
+	while ($row = mysql_fetch_array($query)) {
+	$email= $row['email'];
+	echo getUserId($email);
+	}
     
 /*
  * LOGIN: tagit_api.php?action=login&email=email&password=password

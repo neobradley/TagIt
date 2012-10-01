@@ -80,12 +80,12 @@ function getMenu($ids = null, $columns = array("id","name","price","type")){
 		$query = db_query_columns($link, TABLE_MENU, $columns, $parameters);
 	}
 		
-        $result_array = array();
+	$result_array = array();
 	while($result = db_fetch_array($query)){
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	return $result_array;
 }
 
 
@@ -175,7 +175,7 @@ function getUser($ids = null, $columns = array("id","email","name","mobile_numbe
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	return $result_array;
 }
 
 //inserts a user into the user table
@@ -248,17 +248,46 @@ function updateUser($id, $email = null, $name = null, $password = null, $mobile_
 function getFriend($id, $status){
 	global $link;
 	
-	$dbquery = 'select id as id, email as email, name as name, mobile_number as mobile_number from '.TABLE_USERS.' where id in (select user_res from '.TABLE_FRIENDS.' where user_req = '.$id.' and status = '.$status.')';
+	$result_array = array();
+	
+	//gets friends wherein the request came from you
+	$dbquery = 'select id as id, email as email, name as name, mobile_number as mobile_number, current_rank as current_rank, current_achievements as current_achievements from '.TABLE_USERS.' where id in (select user_res from '.TABLE_FRIENDS.' where user_req = '.$id.' and status = '.$status.')';
 	$query = db_query($dbquery, $link);
 	
-	$request = "";
-	
-	$result_array = array();
 	while($result = db_fetch_array($query)){
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	//gets friends wherein the request came from them
+	$dbquery = 'select id as id, email as email, name as name, mobile_number as mobile_number, current_rank as current_rank, current_achievements as current_achievements from '.TABLE_USERS.' where id in (select user_req from '.TABLE_FRIENDS.' where user_res = '.$id.' and status = '.$status.')';
+	$query = db_query($dbquery, $link);
+	
+	while($result = db_fetch_array($query)){
+            array_push($result_array, $result);
+	}
+	
+	return $result_array;
+}
+
+function getUserFriendIds($id, $status){
+	global $link;
+	
+	$dbquery = 'select id from '.TABLE_USERS.' where id in (select user_res from '.TABLE_FRIENDS.' where user_req = '.$id.' and status = '.$status.')';
+	$query = db_query($dbquery, $link);
+	
+	$result_array = array();
+	while($result = db_fetch_array($query)){
+		array_push($result_array, (int)$result['id']);
+	}
+	
+	$dbquery = 'select id as id, email as email, name as name, mobile_number as mobile_number, current_rank as current_rank, current_achievements as current_achievements from '.TABLE_USERS.' where id in (select user_req from '.TABLE_FRIENDS.' where user_res = '.$id.' and status = '.$status.')';
+	$query = db_query($dbquery, $link);
+	
+	while($result = db_fetch_array($query)){
+            array_push($result_array, (int)$result['id']);
+	}
+	
+	return $result_array;
 }
 
 function getFriend2($id, $columns = array("user_res", "status"), $status){
@@ -287,7 +316,7 @@ function getFriend2($id, $columns = array("user_res", "status"), $status){
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	return $result_array;
 }
 
 //NOT YET TESTED
@@ -295,7 +324,7 @@ function getFriend2($id, $columns = array("user_res", "status"), $status){
 // -if set to add, sets status to 3
 // -if set to accept, sets status to 4
 // -if set to ignore, sets status to 5
-// -if set to cancel, sets status to 6
+// -if set to cancel/remove, deletes record
 //$id - id of requesting for friendship
 //$id2 - id of being requested for friendship
 
@@ -304,22 +333,28 @@ function updateFriend($id, $id2, $action = 'add'){
 	global $link;
 	
 	if($action == 'add'){
-            $data = array('id'=>null, $reqid, 'user_req'=>$id, 'user_res'=>$id2, 'date_req'=>'now()', 'date_res'=>'null', 'status'=>3);
-            $result = db_perform(TABLE_FRIENDS, $data, "insert", null, $link);
-            $result = db_query($query, $link);
-            if($result){
-                return true;
-            }
-            else{
-                return "Failed to add request";
-            }
+			if(!checkFriendRequest($id, $id2)){
+				$data = array('user_req'=>$id, 'user_res'=>$id2, 'date_req'=>'now()', 'date_res'=>'null', 'status'=>3);
+				$query = db_perform(TABLE_FRIENDS, $data, "insert", null, $link);
+				$result = db_query($query, $link);
+				if($result){
+					return "200 Friendzone Request Success";
+				}
+				else{
+					return "405 Too Many Friendzone Request Not Allowed";
+				}
+			}
+			else{
+				return "405 Too Many Friendzone Request Not Allowed";
+			}
+            
 	}
 	else if($action == 'accept'){
             $data = array('date_res'=>'now()', 'status'=>4);
-            $result = db_perform(TABLE_FRIENDS, $data, "update", "user_req = $id AND user_res = $id2 AND status NOT IN (4, 6)", $link);
+            $query = db_perform(TABLE_FRIENDS, $data, "update", "user_req = $id AND user_res = $id2 AND status NOT IN (4, 6, 7)", $link);
             $result = db_query($query, $link);
-            if($result){
-                return true;
+            if(db_affected_rows($query, $link)>0){
+                return "200 Friendzone Established Successfully";
             }
             else{
                 return "Failed to accept request";
@@ -327,24 +362,23 @@ function updateFriend($id, $id2, $action = 'add'){
 	}
 	else if($action == 'ignore'){
             $data = array('date_res'=>'now()', 'status'=>5);
-            $result = db_perform(TABLE_FRIENDS, $data, "update", "user_req = $id AND user_res = $id2 AND status NOT IN (4, 6)", $link);
+            $query = db_perform(TABLE_FRIENDS, $data, "update", "user_req = $id AND user_res = $id2 AND status NOT IN (4, 6, 7)", $link);
             $result = db_query($query, $link);
-            if($result){
-                return true;
+            if(db_affected_rows($query, $link)>0){
+                return "200 Invinsible Wall Zone Success";
             }
             else{
                 return "Failed to ignore request";
             }
 	}
-	else if($action == 'cancel'){
-            $data = array('date_req'=>'now()', 'status'=>6);
-            $result = db_perform(TABLE_FRIENDS, $data, "update", "user_req = $id AND user_res = $id2 AND status NOT IN (4, 6)", $link);
+	else if($action == 'cancel' || $action == 'remove'){
+            $query = "delete from ".TABLE_FRIENDS." WHERE user_req = $id AND user_res = $id2";
             $result = db_query($query, $link);
             if($result){
-                return true;
+                return "200 Okay to move on";
             }
             else{
-                return "Failed to cancel request";
+                return "406 Not Acceptable";
             }
 	}
 }
@@ -365,7 +399,7 @@ function updateFriend($id, $id2, $action = 'add'){
 //	-if set to array, returns columns specified in the array
 //	-if set to string, returns only column specified in the string
 
-function getAchievementList($ids = null, $columns = array("id","name","description","point","quota")){
+function getAchievementList($ids = null, $columns = array("id","name","description","point")){
 	global $link;
 	
 	$request = "";
@@ -404,13 +438,13 @@ function getAchievementList($ids = null, $columns = array("id","name","descripti
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	return $result_array;
 }
 
-function addAchievementList($name, $description, $point, $quota = null, $status = 1){
+function addAchievementList($name, $description, $point, $status = 1){
 	global $link;
 	
-	$data = array('id'=>null, 'name'=>$name, 'description'=>$description, 'point'=>$point, 'quota'=>"quota", 'status'=>$status,'date_created'=>"now()",'last_update'=>"now()");
+	$data = array('id'=>null, 'name'=>$name, 'description'=>$description, 'point'=>$point, 'status'=>$status,'date_created'=>"now()",'last_update'=>"now()");
 	
 	$query = db_perform(TABLE_ACHIEVEMENTS, $data, "insert", null, $link);
         $result = db_query($query, $link);
@@ -423,7 +457,7 @@ function addAchievementList($name, $description, $point, $quota = null, $status 
 
 }
 
-function updateAchievementList($id, $name = null, $description = null, $point = null, $quota = null, $status = null){
+function updateAchievementList($id, $name = null, $description = null, $point = null, $status = null){
     global $link;
 
     $data = array();
@@ -438,9 +472,6 @@ function updateAchievementList($id, $name = null, $description = null, $point = 
     }
     if(isset($point) && !empty($point)){
             $data['point'] = $point;
-    }
-    if(isset($quota) && !empty($quota)){
-            $data['quota'] = $quota;
     }
     if(isset($status) && !empty($status)){
             $data['status'] = $status;
@@ -459,7 +490,7 @@ function updateAchievementList($id, $name = null, $description = null, $point = 
 function getUserAchievements($id){
     global $link;
 
-    $dbquery = 'select id as id, name as name, description as description, point as point, quota as quota FROM '.TABLE_ACHIEVEMENTS.' where id in (select achievement_id from '.TABLE_USERS_ACHIEVEMENT.' where user_id = '.$id.') and status = 1';
+    $dbquery = 'select id as id, name as name, description as description, point as point FROM '.TABLE_ACHIEVEMENTS.' where id in (select achievement_id from '.TABLE_USERS_ACHIEVEMENT.' where user_id = '.$id.') and status = 1';
     $query = db_query($dbquery, $link);
 
     $result_array = array();
@@ -467,7 +498,22 @@ function getUserAchievements($id){
         array_push($result_array, $result);
     }
 
-    return array('result'=>$result_array);
+    return $result_array;
+
+}
+
+function getUserNotAchievements($id){
+    global $link;
+
+    $dbquery = 'select id as id, name as name, description as description, point as point FROM '.TABLE_ACHIEVEMENTS.' where id not in (select achievement_id from '.TABLE_USERS_ACHIEVEMENT.' where user_id = '.$id.') and status = 1';
+    $query = db_query($dbquery, $link);
+
+    $result_array = array();
+    while($result = db_fetch_array($query)){
+        array_push($result_array, $result);
+    }
+
+    return $result_array;
 
 }
 
@@ -540,7 +586,7 @@ function getEventList($ids = null, $columns = array("id","name","date_start","da
             array_push($result_array, $result);
 	}
 	
-	return array('result'=>$result_array);
+	return $result_array;
 }
 
 function getEventByDate($date){
@@ -554,7 +600,7 @@ function getEventByDate($date){
             array_push($result_array, $result);
         }
 
-        return array('result'=>$result_array);
+        return $result_array;
 }
 
 function addEvent($name, $date_start, $date_end, $achievement_id, $point, $description, $status = 1){
@@ -622,11 +668,114 @@ function login($email, $password){
     $query = db_query($dbquery, $link);
     
     if(db_num_rows($query)>0){
-        return "200";
+        return getUserId($email);
     }
     else{
-        return "Failed to login. Invalid email/password";
+        //return "Failed to login. no unregistered nigga allowed! Go sign up nigga! or enter your freaking valid email or password nigga!";
+		return "Failed to login. Email or Password invalid.";
     }
+}
+
+
+
+/* EOF LOGIN MODULE */
+
+/* BOF FRIEND MODULE */
+
+function getUserFriend($id){
+    global $link;
+    
+    $dbquery = "select * from ".TABLE_USERS." where email = '".$email."'";
+    $query = db_query($dbquery, $link);
+    
+    $result_array = array();
+	while($result = db_fetch_array($query)){
+		array_push($result_array, $result);
+	}
+	
+	return $result_array;
+}
+
+/*EOF FRIEND MODULE */
+
+/* BOF POINT MODULE */
+
+function transferPoint($id, $id2, $points){
+	global $link;
+		
+		
+		//get senders current points
+		$dbquery = "select current_points from ".TABLE_USERS." where id = $id";
+		$query = db_query($dbquery, $link);
+
+		$row = mysql_fetch_row($query);
+		$id_points = $row[0];
+		
+		//get receivers current points
+		$dbquery = "select current_points from ".TABLE_USERS." where id = $id2";
+		$query = db_query($dbquery, $link);
+		
+		$row = mysql_fetch_row($query);
+		$id2_points = $row[0];
+		
+		if(isset($id_points) && isset($id2_points)){
+		
+			//sender's new points
+			$id_newpoints = $id_points - $points;
+			
+			//receiver's new points
+			$id2_newpoints = $id2_points + $points;
+			
+			//update sender's points
+			$data = array('current_points'=>$id_newpoints, 'last_update'=>'now()');
+			$query = db_perform(TABLE_USERS, $data, "update", "id = $id", $link);
+			$result = db_query($query, $link);
+			
+			//update receiver's points
+			$data2 = array('current_points'=>$id2_newpoints, 'last_update'=>'now()');
+			$query2 = db_perform(TABLE_USERS, $data2, "update", "id = $id2", $link);
+			$result2 = db_query($query2, $link);
+			
+			if(db_affected_rows($query, $link)>0 && db_affected_rows($query2, $link)>0){
+				
+				//add record of transfer point to table transferpoint
+				$data = array('id'=>null, 'giver_id'=>$id, 'receiver_id'=>$id2, 'point'=>$points, 'date_created'=>'now()', 'status'=>1);
+				$query = db_perform(TABLE_TRANSFERPOINT, $data, "insert", null, $link);
+				$result = db_query($query, $link);
+				if($result){
+					return "200";
+				}
+				else{
+					return "Failed to transfer point";
+				}		
+			}
+			else{
+				return "Failed to transfer points";
+			}
+		
+		}
+	
+}
+
+/* EOF POINT MODULE */
+
+/* BOF GENERAL */
+
+function getUserId($email){
+	global $link;
+    
+    $dbquery = "select id from ".TABLE_USERS." where email = '$email'";
+    $query = db_query($dbquery, $link);
+    
+	$row = mysql_fetch_row($query);
+	$id = $row[0];
+    if(isset($id) && !empty($id)){
+        return $id;
+    }
+    else{
+        return "Failed to get id by email.";
+    }
+
 }
 
 function checkEmail($email){
@@ -643,15 +792,24 @@ function checkEmail($email){
     }
 }
 
-/* EOF LOGIN MODULE */
-
-/* BOF SYNC MODULE */
-
-function sync($identifier){
+function checkFriendRequest($id, $id2){
+	global $link;
     
+    $dbquery = "select * from ".TABLE_FRIENDS." where user_req = '".$id."' and user_res = '".$id2."' and status != 6";
+    $query = db_query($dbquery, $link);
+    
+	$dbquery2 = "select * from ".TABLE_FRIENDS." where user_res = '".$id."' and user_req = '".$id2."' and status != 6";
+    $query2 = db_query($dbquery2, $link);
+	
+    if(db_num_rows($query)>0 || db_num_rows($query2)>0){
+        return true;
+    }
+    else{
+        return false;
+    }
 }
 
-/*EOF SYNC MODULE */
+/* EOF GENERAL */
 
 //$result = login("tracy.mondelipano@gmail.com", "123456");
 //if($result){echo true;}else{echo "Failed to login";}

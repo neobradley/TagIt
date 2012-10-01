@@ -244,4 +244,8 @@
 
     return addslashes($string);
   }
+  
+  function db_affected_rows($string, $link){
+	return mysql_affected_rows();
+  }
 ?>
