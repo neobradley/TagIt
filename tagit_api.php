@@ -10,79 +10,115 @@ require ('/includes/tagit_function.php');
 $request = $_SERVER['QUERY_STRING'];
 $result = null;
 
-if(isset($request) && !empty($request)){
-    
+if (isset($request) && !empty($request)) {
+
     $parameters = parseRequest($request);
-    
-    switch($parameters['action']){
+
+    switch ($parameters['action']) {
 
         case "addUser":
-            $result = addUser($parameters['email'], $parameters['name'], $parameters['password'], $parameters['mobile_number']);
+            $result = addUser($parameters['email'], null, $parameters['name'], $parameters['password'], $parameters['mobile_number']);
             break;
-			
+
         case "getUser":
             $result = login($parameters['email'], $parameters['password']);
             break;
-			
-        case "syncUser":
-		
-			//data pulled for user profile
-            $result['user_profile'] = getUser($parameters['id'], array("id", "email", "name", "password", "mobile_number", "current_rank", "current_achievements"));
-			
-			//data pulled for profiles of user's friends
-			$result['friends_profile'] = getUser(getUserFriendIds($parameters['id'], 4), array("id", "email", "name", "password", "mobile_number", "current_rank", "current_achievements"));
-			
-			//data pulled for user's friends and requests
-			$result['friends_current'] = getFriend($parameters['id'], 4);
-			$result['friends_pending'] = getFriend($parameters['id'], 3);
-			$result['friends_ignored'] = getFriend($parameters['id'], 5);
-			$result['friends_cencelled'] = getFriend($parameters['id'], 6);
-			
-			//data pulled for user's achievements achieved and not yet achieved
-			$result['achievement_userachieved'] = getUserAchievements($parameters['id']);
-			$result['achievement_usernotachieved'] = getUserNotAchievements($parameters['id']);
+
+        case "updateUserInfo":
+            $email = null;
+            $avatar = null;
+            $name = null;
+            $password = null;
+            $mobile_number = null;
+            $status = null;
+            if (isset($parameters['email']) && !empty($parameters['email'])) {
+                $email = $parameters['email'];
+            }
+            if (isset($parameters['avatar']) && !empty($parameters['avatar'])) {
+                $avatar = $parameters['avatar'];
+            }
+            if (isset($parameters['name']) && !empty($parameters['name'])) {
+                $name = $parameters['name'];
+            }
+            if (isset($parameters['password']) && !empty($parameters['password'])) {
+                $password = $parameters['password'];
+            }
+            if (isset($parameters['mobile_number']) && !empty($parameters['mobile_number'])) {
+                $mobile_number = $parameters['mobile_number'];
+            }
+            if (isset($parameters['status']) && !empty($parameters['status'])) {
+                $status = $parameters['status'];
+            }
+
+            $result = updateUser($parameters['id'], $email, $avatar, $name, $password, $mobile_number, $status);
             break;
-			
-		case "addFriend":
-			$result = updateFriend($parameters['id'], $parameters['id2'], "add");
-			break;
-			
-		case "cancelFriend":
-			$result = updateFriend($parameters['id'], $parameters['id2'], "remove");
-			break;
-			
-		case "acceptFriend":
-			$result = updateFriend($parameters['id'], $parameters['id2'], "accept");
-			break;	
-			
-		case "ignoreFriend":
-			$result = updateFriend($parameters['id'], $parameters['id2'], "ignore");
-			break;	
-			
-		case "removeFriend":
-			$result = updateFriend($parameters['id'], $parameters['id2'], "remove");
-			break;
-		
-		case "transferPoint":
-			$result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point']);
-			break;
+        
+        case "syncUser":
+
+            //data pulled for user profile
+            
+            $result['user'] = getUser(getUserAndFriends($parameters['id']), array("id", "avatar", "email", "name", "mobile_number", "rank", "current_points", "total_number_achievement", "last_update"));
+            $result['achievement'] = getAchievementList(null, array("id","name","type","description","type","required_qty","point"));
+            $result['friend'] = getFriends($parameters['id']);
+            $result['user_achievement'] = getUserAchievements(getUserAndFriends($parameters['id']));
+            $result['log'] = getLogs(getUserAndFriends($parameters['id']));
+            $result['receipt'] = getReceipt($parameters['id']);
+            $result['event'] = getEvent();
+//            $result['user_achievement'] = getUserAchievements($parameters['id']);
+            //data pulled for profiles of user's friends
+//            $user_friendids = getUserFriendIds($parameters['id'], 4);
+//            if (isset($user_friendids) && !empty($user_friendids)) {
+//                $result['friends_profile'] = getUser($user_friendids, array("id", "avatar", "email", "name", "password", "mobile_number", "rank", "current_points", "total_number_achievement", "last_update"));
+//                $result['friends_achievement'] = getFriendsAchievement
+//            } else {
+//                $result['friends_profile'] = null;
+//            }
+
+            //data pulled for user's friends and requests
+//            $result['friends_current'] = getFriend($parameters['id'], 4);
+//            
+//            $result['friends_request'] = getFriend($parameters['id'], 3);
+//            $result['friends_pending'] = getFriend2($parameters['id'], 3);
+//          
+            //data pulled for user's achievements achieved and not yet achieved
+//            $result['achievement_userachieved'] = getUserAchievements($parameters['id']);
+//            $result['achievement_usernotachieved'] = getUserNotAchievements($parameters['id']);
+            break;
+
+        case "addFriend":
+            $result = updateFriend($parameters['id'], $parameters['id2'], "add");
+            break;
+
+        case "cancelFriend":
+            $result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+            break;
+
+        case "acceptFriend":
+            $result = updateFriend($parameters['id'], $parameters['id2'], "accept");
+            break;
+
+        case "ignoreFriend":
+            $result = updateFriend($parameters['id'], $parameters['id2'], "ignore");
+            break;
+
+        case "removeFriend":
+            $result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+            break;
+
+        case "transferPoint":
+            $result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point']);
+            break;
     }
 }
 
-    if(is_null($result)){
-        echo "Request error.";
-    }
-    else{
-        $arr = array("result"=>$result);
-        echo json_encode($arr);
-    }
-	
-	$query =  mysql_query("SELECT email FROM users WHERE id !=1");
-	while ($row = mysql_fetch_array($query)) {
-	$email= $row['email'];
-	echo getUserId($email);
-	}
-    
+if (is_null($result)) {
+    echo "Request error.";
+} else {
+    $arr = array("result" => $result);
+    //echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
+    return json_encode($arr);
+}
+
 /*
  * LOGIN: tagit_api.php?action=login&email=email&password=password
  * RETURNS: 1 - successful login, "Failed to login. Invalid email/password" - failed login
