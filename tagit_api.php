@@ -64,6 +64,7 @@ if (isset($request) && !empty($request)) {
             $result['log'] = getLogs(getUserAndFriends($parameters['id']));
             $result['receipt'] = getReceipt($parameters['id']);
             $result['event'] = getEvent();
+            $result['menu'] = getMenu(null, array("id","name","price","type"));
 //            $result['user_achievement'] = getUserAchievements($parameters['id']);
             //data pulled for profiles of user's friends
 //            $user_friendids = getUserFriendIds($parameters['id'], 4);
@@ -108,6 +109,10 @@ if (isset($request) && !empty($request)) {
         case "transferPoint":
             $result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point']);
             break;
+        
+        case "scanPoints":
+            $result = updateUserReceipt($parameters['id'], $parameters['receiptnumber'], $parameters['mobilenumber']);
+            break;
     }
 }
 
@@ -116,7 +121,7 @@ if (is_null($result)) {
 } else {
     $arr = array("result" => $result);
     //echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
-    return json_encode($arr);
+    print_r(json_encode($arr));
 }
 
 /*

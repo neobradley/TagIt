@@ -536,18 +536,18 @@ function getFriendAchievements($id) {
     }
 }
 
-function addUserAchievement($userid, $achievementid) {
-    global $link;
-
-    $data = array('user_id' => userid, 'achievement_id' => $achievementid, 'date_created' => 'now()', 'last_update' => 'now()');
-
-    $result = db_query($query, $link);
-    if ($result) {
-        return true;
-    } else {
-        return "Failed to add user achievement";
-    }
-}
+//function addUserAchievement($userid, $achievementid) {
+//    global $link;
+//
+//    $data = array('user_id' => userid, 'achievement_id' => $achievementid, 'date_created' => 'now()', 'last_update' => 'now()');
+//
+//    $result = db_query($query, $link);
+//    if ($result) {
+//        return true;
+//    } else {
+//        return "Failed to add user achievement";
+//    }
+//}
 
 /* EOF ACHIEVEMENT MODULE */
 
@@ -810,6 +810,29 @@ function checkFriendRequest($id, $id2) {
     }
 }
 
+function usedReceipt($receiptnumber){
+    global $link;
+    
+    $dbquery = "select count(*) from " . TABLE_RECEIPT . " where status = 1 and receipt_number = ".$receiptnumber;
+    $query = db_query($dbquery, $link);
+
+    if (db_num_rows($query) > 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+function countAchievement($userid){
+    global $link;
+    
+    $dbquery = "select count(*) from " . TABLE_USERS_ACHIEVEMENT . " where user_id = ".$userid;
+    $query = db_query($dbquery, $link);
+
+    $row = mysql_fetch_row($query);
+    return $achievementcount = $row[0];
+}
+
 /* EOF GENERAL */
 
 function getUserAndFriends($id) {
@@ -890,12 +913,12 @@ function getReceipt($id){
     global $link;
     
     $result_array = array();
-        $dbquery = 'select receipt_number as receipt_number, date_created as date_created from '.TABLE_RECEIPT.' where user_id = ' . $id;
-        $query = db_query($dbquery, $link);
+    $dbquery = 'select receipt_number as receipt_number, date_created as date_created from '.TABLE_RECEIPT.' where user_id = ' . $id;
+    $query = db_query($dbquery, $link);
 
-        while ($result = db_fetch_array($query)) {
-            array_push($result_array, $result);
-        }
+    while ($result = db_fetch_array($query)) {
+        array_push($result_array, $result);
+    }
 
     return $result_array;
     
@@ -905,14 +928,126 @@ function getEvent(){
     global $link;
     
     $result_array = array();
-        $dbquery = 'select name as name, date_start as date_start, date_end as date_end, description as description, achievement_id as achievement_id, point as point, status as status from '.TABLE_EVENTS;
-        $query = db_query($dbquery, $link);
+    $dbquery = 'select name as name, date_start as date_start, date_end as date_end, description as description, achievement_id as achievement_id, point as point, status as status from '.TABLE_EVENTS;
+    $query = db_query($dbquery, $link);
 
-        while ($result = db_fetch_array($query)) {
-            array_push($result_array, $result);
-        }
+    while ($result = db_fetch_array($query)) {
+        array_push($result_array, $result);
+    }
 
     return $result_array;
     
 }
+
+function updateUserReceipt($userid, $receiptnumber, $mobilenumber){
+    global $link;
+    
+    //update receipt details
+    $receipt_added = array();
+    $receipt_rejected = array();
+    
+    if(is_array($receiptnumber)){
+        foreach ($receiptnumber as $value) {
+            if(usedReceipt($receiptnumber)){
+                array_push($receipt_rejected, $value);
+            }else{
+                array_push($receipt_added, $value);
+                
+                $data = array();
+                $data['user_id'] = $value;
+                $data['status'] = 1;
+                $query = db_perform(TABLE_RECEIPT, $data, "update", "receipt_number = $value", $link);
+                $result = db_query($query, $link);
+            }    
+                
+        }
+    }
+    else{
+        if(usedReceipt($receiptnumber)){
+           array_push($receipt_rejected, $value);
+        }else{
+           array_push($receipt_added, $value);
+
+           $data = array();
+           $data['user_id'] = $value;
+           $data['status'] = 1;
+           $query = db_perform(TABLE_RECEIPT, $data, "update", "receipt_number = $value", $link);
+           $result = db_query($query, $link);
+        }    
+    }
+    
+    if(count($receipt_added)>0){
+        addLog($userid, $mobilenumber, "Scan Points", "Scanned receipt for points");
+    }
+    
+    //check for new achievements
+    $newachievement = checkAchievement($userid);
+    if($newachievement>0){
+        addLog($userid, $mobilenumber, "Achievement", "New achievement unlocked");
+    }
+    
+}
+
+function checkAchievement($userid){
+    
+    $newachievement = 0;
+    
+    //gets combined information for user's receipt id, combined type
+    $dbquery = "select food_type, sum(qty) as qty_usertotal, sum(subtotal) as total from receipt_details where receipt_number in (select receipt_number from receipt where user_id = $userid) group by food_type";
+    $query = db_query($dbquery, $link);
+
+    //per food type, queries achievement information of the same type and 
+    while ($result = db_fetch_array($query)) {
+        $query2 = "select id, name, description, type, required_qty as qty_requirement, point from achievements where type = '".$result['food_type']."' and id not in (select achievement_id from users_achievements where user_id = $userid);";
+        $query2 = db_query($query2, $link);
+        while ($result2 = db_fetch_array($query2)) {
+            if($result2['qty_requirement']<=$result['qty_usertotal']){
+                updateUserAchievement($userid, $result2['id'], $result2['point']);
+                $newachievement++;
+            }
+        }
+    }
+    
+    return $newachievement;
+}
+
+function updateUserAchievement($userid, $achievementid, $point){
+    global $link;
+    
+    $data = array('user_id' => $userid, '$achievement_id' => $achievementid, 'date_created' => 'now()', 'last_update' => 'now()');
+
+    $query = db_perform(TABLE_USERS_ACHIEVEMENT, $data, "insert", null, $link);
+    $result = db_query($query, $link);
+    
+    updateUser($userid, null, null, null, null, null, null, getRank($userid), "point + $point", countAchievement($userid));
+}
+
+function getRank($userid){
+    
+    
+    $dbquery = 'select rank from '.TABLE_RANK.' where required_number<='.  countAchievement($userid).' order by required_number desc limit 1';
+    $query = db_query($dbquery, $link);
+
+    $row = mysql_fetch_row($query);
+    return $rank = $row[0];
+    
+}
+
+function addLog($userid, $mobilenumber, $action, $action_description) {
+    global $link;
+    
+    $data = array('user_id' => $userid, 'date_created' => $name, 'mobile_number' => $mobilenumber, 'action' => $action, 'action_description' => $action_description);
+
+    $query = db_perform(TABLE_LOGS, $data, "insert", null, $link);
+    $result = db_query($query, $link);
+    if ($result) {
+        return true;
+    } else {
+        return "Failed to add log item to log";
+    }
+}
+
+
+
+
 ?>
