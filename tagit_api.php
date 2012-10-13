@@ -123,7 +123,7 @@ if (is_null($result)) {
     echo "Request error.";
 } else {
     $arr = array("result" => $result);
-    echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
+//    echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
     print_r(json_encode($arr));
 }
 
