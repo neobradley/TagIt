@@ -1133,6 +1133,46 @@ function getLogAction($type){
     
 }
 
+function getRedeem($ids = null, $columns = array("id", "name", "price", "type")) {
+    global $link;
+
+    $request = "";
+    //$id_parameter = "";
+    $parameters = array();
+
+    if (isset($ids) && !empty($ids)) {
+
+        if (is_array($ids)) {
+            $parameter_id = "id IN (";
+            foreach ($ids as $id) {
+                $parameter_id .= ' ' . $id . ', ';
+            }
+            $parameter_id = substr($parameter_id, 0, -2);
+            $parameter_id .= ")";
+
+            array_push($parameters, $parameter_id);
+        } else {
+            $parameter_id = " id = " . $ids;
+            array_push($parameters, $parameter_id);
+        }
+    }
+
+    array_push($parameters, "status = 1");
+
+    if (is_null($columns)) {
+        $query = db_query_all($link, TABLE_POINTEQUIVALENT, $parameters);
+    } else {
+        $query = db_query_columns($link, TABLE_POINTEQUIVALENT, $columns, $parameters);
+    }
+
+    $result_array = array();
+    while ($result = db_fetch_array($query)) {
+        array_push($result_array, $result);
+    }
+
+    return $result_array;
+}
+
 
 
 

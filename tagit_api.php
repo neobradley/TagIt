@@ -66,6 +66,7 @@ if (isset($request) && !empty($request)) {
             $result['receipt'] = getReceipt($parameters['id']);
             $result['event'] = getEvent();
             $result['menu'] = getMenu(null, array("id","name","price","type"));
+            $result['redeem'] = getRedeem(null, array("id","point","equivalent"));
             
 //            $result['user_achievement'] = getUserAchievements($parameters['id']);
             //data pulled for profiles of user's friends
