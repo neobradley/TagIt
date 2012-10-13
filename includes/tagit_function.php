@@ -195,7 +195,7 @@ function addUser($email, $name, $avatar = null, $password, $mobile_number, $stat
 }
 
 //updates user table for given $id
-function updateUser($id, $email = null, $avatar = null, $name = null, $password = null, $mobile_number = null, $status = null, $rank = null, $current_points = null, $total_number_achievement = null) {
+function updateUser($id, $email = null, $avatar = null, $name = null, $password = null, $mobile_number = null, $status = null, $rank = null, $current_points = null, $total_number_achievement = null, $mobilenumberused) {
     global $link;
 
     $data = array();
@@ -218,13 +218,13 @@ function updateUser($id, $email = null, $avatar = null, $name = null, $password 
         $data['mobile_number'] = $mobile_number;
     }
     if (isset($rank) && !empty($rank)) {
-        $data['$rank'] = $rank;
+        $data['rank'] = $rank;
     }
     if (isset($current_points) && !empty($current_points)) {
-        $data['$current_points'] = $current_points;
+        $data['current_points'] = $current_points;
     }
     if (isset($total_number_achievement) && !empty($total_number_achievement)) {
-        $data['$total_number_achievement'] = $total_number_achievement;
+        $data['total_number_achievement'] = $total_number_achievement;
     }
     if (isset($status) && !empty($status)) {
         $data['status'] = $status;
@@ -233,6 +233,8 @@ function updateUser($id, $email = null, $avatar = null, $name = null, $password 
     $query = db_perform(TABLE_USERS, $data, "update", "id = $id", $link);
     $result = db_query($query, $link);
     if (db_affected_rows($query, $link) > 0) {
+        
+        addLog($id, $mobilenumberused, 10);
         return "200";
     } else {
         return "Failed to update user information";
@@ -332,7 +334,7 @@ function getFriend3($id, $columns = array("user_res", "status"), $status) {
 //$id - id of requesting for friendship
 //$id2 - id of being requested for friendship
 //status [3:pending | 4:accepted | 5:ignore | 6:cancelled]
-function updateFriend($id, $id2, $action = 'add') {
+function updateFriend($id, $id2, $action = 'add', $mobilenumberused) {
     global $link;
 
     if ($action == 'add') {
@@ -341,6 +343,8 @@ function updateFriend($id, $id2, $action = 'add') {
             $query = db_perform(TABLE_FRIENDS, $data, "insert", null, $link);
             $result = db_query($query, $link);
             if ($result) {
+                
+                addLog($id, $mobilenumberused, 7);
                 return "200";
             } else {
                 return "Friend request failed";
@@ -353,6 +357,8 @@ function updateFriend($id, $id2, $action = 'add') {
         $query = db_perform(TABLE_FRIENDS, $data, "update", "user_res = $id AND user_req = $id2 AND status NOT IN (4, 6, 7)", $link);
         $result = db_query($query, $link);
         if (db_affected_rows($query, $link) > 0) {
+            
+            addLog($id, $mobilenumberused, 8);
             return "200";
         } else {
             return "Failed to accept request";
@@ -370,6 +376,7 @@ function updateFriend($id, $id2, $action = 'add') {
         $query = "delete from " . TABLE_FRIENDS . " WHERE (user_req = " . $id . " AND user_res = " . $id2 . ") OR (user_res = " . $id . " AND user_req = " . $id2 . ")";
         $result = db_query($query, $link);
         if ($result) {
+            addLog($id, $mobilenumberused, 12);
             return "200";
         } else {
             return "Failed to cancel/remove request";
@@ -674,13 +681,14 @@ function updateEvent($id, $name = null, $date_start = null, $date_end = null, $a
 
 /* BOF LOGIN MODULE */
 
-function login($email, $password) {
+function login($email, $password, $mobilenumberused) {
     global $link;
 
     $dbquery = "select * from " . TABLE_USERS . " where email = '$email' and password = '$password' and status = 1";
     $query = db_query($dbquery, $link);
 
     if (db_num_rows($query) > 0) {
+        addLog(getUserId($email), $mobilenumberused, 2);
         return getUserId($email);
     } else {
         return "Failed to login. Email or Password invalid.";
@@ -709,7 +717,7 @@ function getUserFriend($id) {
 
 /* BOF POINT MODULE */
 
-function transferPoint($id, $id2, $points) {
+function transferPoint($id, $id2, $points, $mobilenumberused) {
     global $link;
 
 
@@ -752,6 +760,8 @@ function transferPoint($id, $id2, $points) {
             $query = db_perform(TABLE_TRANSFERPOINT, $data, "insert", null, $link);
             $result = db_query($query, $link);
             if ($result) {
+                
+                addLog($id, $mobilenumberused, 9);
                 return "200";
             } else {
                 return "Failed to transfer point";
@@ -815,8 +825,9 @@ function usedReceipt($receiptnumber){
     
     $dbquery = "select count(*) from " . TABLE_RECEIPT . " where status = 1 and receipt_number = ".$receiptnumber;
     $query = db_query($dbquery, $link);
-
-    if (db_num_rows($query) > 0) {
+    $row = mysql_fetch_row($query);
+    
+    if ($row[0] > 0) {
         return true;
     } else {
         return false;
@@ -887,7 +898,7 @@ function getLogs($ids){
     $result_array = array();
     if (is_array($ids)) {
         foreach($ids as $id){
-            $dbquery = 'select id as id, user_id as user_id, date_created as date_created, action as action, action_id as action_id from '.TABLE_LOGS.' where user_id = ' . $id;
+            $dbquery = 'select id as id, user_id as user_id, date_created as date_created, action as action, action_description as action_description from '.TABLE_LOGS.' where user_id = ' . $id;
             $query = db_query($dbquery, $link);
 
 
@@ -896,7 +907,7 @@ function getLogs($ids){
             }
         }
     } else {
-        $dbquery = 'select id as id, user_id as user_id, date_created as date_created, action as action, action_id as action_id from '.TABLE_LOGS.' where user_id = ' . $id;
+        $dbquery = 'select id as id, user_id as user_id, date_created as date_created, action as action, action_description as action_description from '.TABLE_LOGS.' where user_id = ' . $id;
         $query = db_query($dbquery, $link);
 
 
@@ -939,8 +950,10 @@ function getEvent(){
     
 }
 
-function updateUserReceipt($userid, $receiptnumber, $mobilenumber){
+function updateUserReceipt($userid, $receiptnumber, $mobilenumberused){
     global $link;
+    
+    
     
     //update receipt details
     $receipt_added = array();
@@ -948,13 +961,13 @@ function updateUserReceipt($userid, $receiptnumber, $mobilenumber){
     
     if(is_array($receiptnumber)){
         foreach ($receiptnumber as $value) {
-            if(usedReceipt($receiptnumber)){
+            if(usedReceipt($value)){
                 array_push($receipt_rejected, $value);
             }else{
                 array_push($receipt_added, $value);
                 
                 $data = array();
-                $data['user_id'] = $value;
+                $data['user_id'] = $userid;
                 $data['status'] = 1;
                 $query = db_perform(TABLE_RECEIPT, $data, "update", "receipt_number = $value", $link);
                 $result = db_query($query, $link);
@@ -969,7 +982,7 @@ function updateUserReceipt($userid, $receiptnumber, $mobilenumber){
            array_push($receipt_added, $value);
 
            $data = array();
-           $data['user_id'] = $value;
+           $data['user_id'] = $userid;
            $data['status'] = 1;
            $query = db_perform(TABLE_RECEIPT, $data, "update", "receipt_number = $value", $link);
            $result = db_query($query, $link);
@@ -977,19 +990,22 @@ function updateUserReceipt($userid, $receiptnumber, $mobilenumber){
     }
     
     if(count($receipt_added)>0){
-        addLog($userid, $mobilenumber, "Scan Points", "Scanned receipt for points");
+        addLog($userid, $mobilenumberused, 4);
+    }else if(count($receipt_added)==0 && count($receipt_rejected)>0){
+        return "Invalid/Duplicate receipt/s.";
     }
     
     //check for new achievements
     $newachievement = checkAchievement($userid);
     if($newachievement>0){
-        addLog($userid, $mobilenumber, "Achievement", "New achievement unlocked");
+        addLog($userid, $mobilenumberused, 11);
+        return $receipt_added;
     }
     
 }
 
 function checkAchievement($userid){
-    
+    global $link;
     $newachievement = 0;
     
     //gets combined information for user's receipt id, combined type
@@ -1014,16 +1030,17 @@ function checkAchievement($userid){
 function updateUserAchievement($userid, $achievementid, $point){
     global $link;
     
-    $data = array('user_id' => $userid, '$achievement_id' => $achievementid, 'date_created' => 'now()', 'last_update' => 'now()');
+    $data = array('user_id' => $userid, 'achievement_id' => $achievementid, 'date_created' => 'now()', 'last_update' => 'now()');
 
     $query = db_perform(TABLE_USERS_ACHIEVEMENT, $data, "insert", null, $link);
     $result = db_query($query, $link);
     
-    updateUser($userid, null, null, null, null, null, null, getRank($userid), "point + $point", countAchievement($userid));
+    $dbquery = "update ".TABLE_USERS." set rank='".getRank($userid)."', current_points = current_points+".$point.", total_number_achievement=".countAchievement($userid).", last_update = now() where id = ".$userid;
+    $query = db_query($dbquery, $link);
 }
 
 function getRank($userid){
-    
+    global $link;
     
     $dbquery = 'select rank from '.TABLE_RANK.' where required_number<='.  countAchievement($userid).' order by required_number desc limit 1';
     $query = db_query($dbquery, $link);
@@ -1033,18 +1050,87 @@ function getRank($userid){
     
 }
 
-function addLog($userid, $mobilenumber, $action, $action_description) {
+function addLog($userid, $mobilenumberused, $action) {
     global $link;
     
-    $data = array('user_id' => $userid, 'date_created' => $name, 'mobile_number' => $mobilenumber, 'action' => $action, 'action_description' => $action_description);
+    $action = getLogAction($action);
+    $data = array('user_id' => $userid, 'date_created' => 'now()', 'mobile_number' => $mobilenumberused, 'action' => $action['action'], 'action_description' => $action['action_description']);
 
     $query = db_perform(TABLE_LOGS, $data, "insert", null, $link);
     $result = db_query($query, $link);
     if ($result) {
         return true;
     } else {
-        return "Failed to add log item to log";
+        return "Failed to add log item";
     }
+}
+
+function getLogAction($type){
+    
+    $action = array();
+    switch($type){
+        case 1: 
+            $action['action'] = "Sign Up";
+            $action['action_description'] = "User signed up";
+            return $action;
+            break;
+        case 2: 
+            $action['action'] = "Log In";
+            $action['action_description'] = "User logged in";
+            return $action;
+            break;
+        case 3: 
+            $action['action'] = "Sync";
+            $action['action_description'] = "User synced information";
+            return $action;
+            break;
+        case 4: 
+            $action['action'] = "Scan for points";
+            $action['action_description'] = "User scanned receipt for points";
+            return $action;
+            break;
+        case 5: 
+            $action['action'] = "Order made";
+            $action['action_description'] = "User made an order";
+            return $action;
+            break;
+        case 6: 
+            $action['action'] = "Shared Tag'it";
+            $action['action_description'] = "User shared Tag'it";
+            return $action;
+            break;
+        case 7: 
+            $action['action'] = "Friend Request";
+            $action['action_description'] = "User made a friend request";
+            return $action;
+            break;
+        case 8: 
+            $action['action'] = "Accept Request";
+            $action['action_description'] = "User accepted a friend request";
+            return $action;
+            break;
+        case 9: 
+            $action['action'] = "Transfer Point";
+            $action['action_description'] = "User transferred point";
+            return $action;
+            break;
+        case 10: 
+            $action['action'] = "Profile Update";
+            $action['action_description'] = "User updated profile information";
+            return $action;
+            break;
+        case 11: 
+            $action['action'] = "Achievement Unlocked";
+            $action['action_description'] = "User unlocked achievement";
+            return $action;
+            break;
+        case 12: 
+            $action['action'] = "Cancelled Friend/Request";
+            $action['action_description'] = "User cancelled friend request / removed friend";
+            return $action;
+            break;
+    }
+    
 }
 
 

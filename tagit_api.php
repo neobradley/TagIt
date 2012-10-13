@@ -21,7 +21,7 @@ if (isset($request) && !empty($request)) {
             break;
 
         case "getUser":
-            $result = login($parameters['email'], $parameters['password']);
+            $result = login($parameters['email'], $parameters['password'], $parameters['mobilenumberused']);
             break;
 
         case "updateUserInfo":
@@ -50,12 +50,13 @@ if (isset($request) && !empty($request)) {
                 $status = $parameters['status'];
             }
 
-            $result = updateUser($parameters['id'], $email, $avatar, $name, $password, $mobile_number, $status);
+            $result = updateUser($parameters['id'], $email, $avatar, $name, $password, $mobile_number, $status, null, null, null, $parameters['mobilenumberused']);
             break;
         
         case "syncUser":
 
             //data pulled for user profile
+            addLog($parameters['id'], $parameters['mobilenumberused'], 3);
             
             $result['user'] = getUser(getUserAndFriends($parameters['id']), array("id", "avatar", "email", "name", "mobile_number", "rank", "current_points", "total_number_achievement", "last_update"));
             $result['achievement'] = getAchievementList(null, array("id","name","type","description","type","required_qty","point"));
@@ -65,6 +66,7 @@ if (isset($request) && !empty($request)) {
             $result['receipt'] = getReceipt($parameters['id']);
             $result['event'] = getEvent();
             $result['menu'] = getMenu(null, array("id","name","price","type"));
+            
 //            $result['user_achievement'] = getUserAchievements($parameters['id']);
             //data pulled for profiles of user's friends
 //            $user_friendids = getUserFriendIds($parameters['id'], 4);
@@ -87,31 +89,31 @@ if (isset($request) && !empty($request)) {
             break;
 
         case "addFriend":
-            $result = updateFriend($parameters['id'], $parameters['id2'], "add");
+            $result = updateFriend($parameters['id'], $parameters['id2'], "add", $parameters['mobilenumberused']);
             break;
 
         case "cancelFriend":
-            $result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+            $result = updateFriend($parameters['id'], $parameters['id2'], "remove", $parameters['mobilenumberused']);
             break;
 
         case "acceptFriend":
-            $result = updateFriend($parameters['id'], $parameters['id2'], "accept");
+            $result = updateFriend($parameters['id'], $parameters['id2'], "accept", $parameters['mobilenumberused']);
             break;
 
         case "ignoreFriend":
-            $result = updateFriend($parameters['id'], $parameters['id2'], "ignore");
+            $result = updateFriend($parameters['id'], $parameters['id2'], "ignore", $parameters['mobilenumberused']);
             break;
 
         case "removeFriend":
-            $result = updateFriend($parameters['id'], $parameters['id2'], "remove");
+            $result = updateFriend($parameters['id'], $parameters['id2'], "remove", $parameters['mobilenumberused']);
             break;
 
         case "transferPoint":
-            $result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point']);
+            $result = transferPoint($parameters['id'], $parameters['id2'], $parameters['point'], $parameters['mobilenumberused']);
             break;
         
         case "scanPoints":
-            $result = updateUserReceipt($parameters['id'], $parameters['receiptnumber'], $parameters['mobilenumber']);
+            $result = updateUserReceipt($parameters['id'], $parameters['receiptnumber'], $parameters['mobilenumberused']);
             break;
     }
 }
@@ -120,7 +122,7 @@ if (is_null($result)) {
     echo "Request error.";
 } else {
     $arr = array("result" => $result);
-    //echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
+    echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
     print_r(json_encode($arr));
 }
 
