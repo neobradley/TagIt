@@ -241,6 +241,22 @@ function updateUser($id, $email = null, $avatar = null, $name = null, $password 
     }
 }
 
+function updateUserLastUpdate($id){
+    global $link;
+
+    $data = array();
+
+    $data['last_update'] = 'now()';
+	
+	$query = db_perform(TABLE_USERS, $data, "update", "id = $id", $link);
+    $result = db_query($query, $link);
+    if (db_affected_rows($query, $link) > 0) {
+        return "200";
+    } else {
+        return "Failed to update user information";
+    }
+}
+
 /* EOF USER MODULE */
 
 /* BOF FRIEND MODULE */
@@ -1173,7 +1189,31 @@ function getRedeem($ids = null, $columns = array("id", "name", "price", "type"))
     return $result_array;
 }
 
+function searchUser($tag){ 
+    global $link;
+	
+	$dbquery = "select count(*) from " . TABLE_USERS . " WHERE email = '".$tag."' OR name = '".$tag."'";
+    $query = db_query($dbquery, $link);
+    $row = mysql_fetch_row($query);
+    
+    if ($row[0] > 0) {
+        
+		
+			$dbquery = "SELECT id, avatar, email, name, mobile_number, rank, current_points, total_number_achievement, last_update FROM ".TABLE_USERS." WHERE email = '".$tag."' OR name = '".$tag."'";
+			$query = db_query($dbquery, $link);
 
+			$result_array = array();
+			while ($result = db_fetch_array($query)) {
+				array_push($result_array, $result);
+			}
+
+			return $result_array;
+		
+		
+    } else {
+        return "No results found.";
+    }
+}
 
 
 ?>

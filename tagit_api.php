@@ -23,7 +23,9 @@ if (isset($request) && !empty($request)) {
         case "getUser":
             $result = login($parameters['email'], $parameters['password'], $parameters['mobilenumberused']);
             break;
-
+		case "searchUser":
+			$result = searchUser($parameters['keyword']);
+			break;
         case "updateUserInfo":
             $email = null;
             $avatar = null;
@@ -57,7 +59,7 @@ if (isset($request) && !empty($request)) {
 
             //data pulled for user profile
             addLog($parameters['id'], $parameters['mobilenumberused'], 3);
-            
+            updateUserLastUpdate($parameters['id']);
             $result['user'] = getUser(getUserAndFriends($parameters['id']), array("id", "avatar", "email", "name", "mobile_number", "rank", "current_points", "total_number_achievement", "last_update"));
             $result['achievement'] = getAchievementList(null, array("id","name","type","description","type","required_qty","point"));
             $result['friend'] = getFriends($parameters['id']);
@@ -67,6 +69,7 @@ if (isset($request) && !empty($request)) {
             $result['event'] = getEvent();
             $result['menu'] = getMenu(null, array("id","name","price","type"));
             $result['redeem'] = getRedeem(null, array("id","point","equivalent"));
+			
             
 //            $result['user_achievement'] = getUserAchievements($parameters['id']);
             //data pulled for profiles of user's friends
@@ -122,6 +125,7 @@ if (isset($request) && !empty($request)) {
 $api_list = array(
     "addUser"=>array("Param"=>'email, name, password, mobile_number'),
     "getUser"=>array("Param"=>'email, password, mobilenumberused'),
+	"searchUser"=>array("Param"=>'keyword'),
     "updateUserInfo"=>array("Param"=>'email, avatar, name, password, mobile_number, status'),
     "syncUser"=>array("Param"=>'id, mobilenumberused'),
     "addFriend"=>array("Param"=>'id, id2, mobilenumberused'),
