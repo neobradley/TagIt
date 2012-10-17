@@ -119,8 +119,31 @@ if (isset($request) && !empty($request)) {
     }
 }
 
+$api_list = array(
+    "addUser"=>array("Param"=>'email, name, password, mobile_number'),
+    "getUser"=>array("Param"=>'email, password, mobilenumberused'),
+    "updateUserInfo"=>array("Param"=>'email, avatar, name, password, mobile_number, status'),
+    "syncUser"=>array("Param"=>'id, mobilenumberused'),
+    "addFriend"=>array("Param"=>'id, id2, mobilenumberused'),
+    "cancelFriend"=>array("Param"=>'id, id2, mobilenumberused'),
+    "acceptFriend"=>array("Param"=>'id, id2, mobilenumberused'),
+    "ignoreFriend"=>array("Param"=>'id, id2, mobilenumberused'),
+    "removeFriend"=>array("Param"=>'id, id2, mobilenumberused'),
+    "transferPoint"=>array("Param"=>'id, id2, point, mobilenumberused'),
+    "scanPoints"=>array("Param"=>'id, receiptnumber, mobilenumberused')
+    
+);
+
 if (is_null($result)) {
-    echo "Request error.";
+    ?>
+<table>
+    <?php
+    foreach($api_list as $api =>$att){
+        echo "<tr><td>".$api."<td>Parameter : ".$att['Param']."</tr>";
+    }
+        ?>
+    </table>
+    <?php  
 } else {
     $arr = array("result" => $result);
 //    echo "<script type='text/javascript'>console.log(".json_encode($arr).');</script>';
