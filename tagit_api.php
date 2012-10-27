@@ -126,7 +126,7 @@ $api_list = array(
     "addUser"=>array("Param"=>'email, name, password, mobile_number'),
     "getUser"=>array("Param"=>'email, password, mobilenumberused'),
 	"searchUser"=>array("Param"=>'keyword'),
-    "updateUserInfo"=>array("Param"=>'email, avatar, name, password, mobile_number, status'),
+    "updateUserInfo"=>array("Param"=>'id, email, avatar, name, password, mobile_number, status'),
     "syncUser"=>array("Param"=>'id, mobilenumberused'),
     "addFriend"=>array("Param"=>'id, id2, mobilenumberused'),
     "cancelFriend"=>array("Param"=>'id, id2, mobilenumberused'),
